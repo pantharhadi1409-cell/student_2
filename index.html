@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NeonGlass OS - Mobile & Emergency</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;500;700&display=swap');
+
+        :root {
+            --bg-dark: #050508;
+            --glass-bg: rgba(20, 20, 30, 0.75);
+            --glass-border: rgba(255, 255, 255, 0.15);
+            --neon-cyan: #00f3ff;
+            --neon-pink: #bc13fe;
+            --neon-green: #0aff00;
+            --neon-red: #ff003c;
+            --neon-amber: #ffbf00;
+            --text-main: #e0e0e0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        body {
+            background-color: var(--bg-dark);
+            background-image: radial-gradient(circle at 50% 50%, #1a1a2e 0%, #000 100%);
+            color: var(--text-main);
+            font-family: 'Rajdhani', sans-serif;
+            height: 100vh;
+            overflow: hidden; /* Prevent body scroll, handle inside containers */
+            display: flex; justify-content: center; align-items: center;
+        }
+
+        /* --- Glass Base --- */
+        .glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.6);
+            border-radius: 12px;
+        }
+
+        /* --- Buttons --- */
+        .btn {
+            background: linear-gradient(135deg, rgba(255,255,255,0.05), transparent);
+            border: 1px solid var(--neon-cyan);
+            color: var(--neon-cyan);
+            padding: 10px 20px; font-family: 'Orbitron', sans-serif; cursor: pointer;
+            transition: 0.3s; text-transform: uppercase; letter-spacing: 1px; font-size: 0.8rem;
+            position: relative; overflow: hidden;
+        }
+        .btn:hover { background: var(--neon-cyan); color: #000; box-shadow: 0 0 20px var(--neon-cyan); }
+        .btn:active { transform: scale(0.95); }
+
+        /* --- Loader --- */
+        #loader-screen {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 9999;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+        }
+        .loader-core {
+            width: 60px; height: 60px; border-radius: 50%;
+            background: var(--neon-cyan); box-shadow: 0 0 30px var(--neon-cyan);
+            animation: pulse-core 1s infinite alternate; margin-bottom: 30px;
+        }
+        @keyframes pulse-core { from { transform: scale(1); } to { transform: scale(1.1); } }
+        .progress-bar { width: 300px; height: 4px; background: #222; border-radius: 2px; overflow: hidden; margin-bottom: 10px; }
+        .progress-fill { height: 100%; background: var(--neon-cyan); width: 0%; transition: width 0.2s; box-shadow: 0 0 10px var(--neon-cyan); }
+
+        /* --- ALARM OVERLAYS --- */
+        .alarm-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(20, 0, 0, 0.85); z-index: 7000;
+            display: none; flex-direction: column; justify-content: center; align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Login Alarm Style */
+        #login-alarm .alarm-container {
+            border: 2px solid var(--neon-pink);
+            box-shadow: 0 0 50px var(--neon-pink), inset 0 0 50px rgba(188, 19, 254, 0.2);
+            padding: 40px; border-radius: 20px; text-align: center;
+            animation: shake 0.5s infinite;
+        }
+
+        /* Emergency Alarm Style */
+        #emergency-alarm .alarm-container {
+            border: 4px solid var(--neon-red);
+            box-shadow: 0 0 80px var(--neon-red), inset 0 0 80px rgba(255, 0, 60, 0.3);
+            padding: 40px; border-radius: 20px; text-align: center;
+            background: #000;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); } 10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); } 30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); } 50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); } 70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); } 90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+
+        .alarm-icon { font-size: 4rem; margin-bottom: 20px; display: block; }
+        #login-alarm .alarm-icon { color: var(--neon-pink); animation: flash 0.5s infinite alternate; }
+        #emergency-alarm .alarm-icon { color: var(--neon-red); animation: flash 0.2s infinite alternate; font-size: 6rem; }
+        @keyframes flash { from { opacity: 0.6; transform: scale(1); } to { opacity: 1; transform: scale(1.1); } }
+
+        .alarm-text { font-size: 1.2rem; color: white; margin-top: 15px; text-transform: uppercase; letter-spacing: 2px; font-family: 'Orbitron'; }
+
+        /* --- Login --- */
+        #login-page { display: none; position: absolute; width: 100%; height: 100%; justify-content: center; align-items: center; z-index: 5000; background: radial-gradient(circle, #111, #000); }
+        .login-box { padding: 40px; width: 320px; text-align: center; border: 1px solid var(--neon-pink); box-shadow: 0 0 30px rgba(188, 19, 254, 0.2); }
+        input { background: rgba(0,0,0,0.5); border: 1px solid var(--glass-border); color: white; padding: 15px; border-radius: 6px; width: 100%; margin-bottom: 20px; font-family: 'Orbitron'; outline: none; text-align: center; font-size: 1rem; }
+
+        /* --- App Layout --- */
+        #app-container { display: none; width: 100%; height: 100%; flex-direction: row; overflow: hidden; }
+        
+        /* Sidebar (Desktop) */
+        aside {
+            width: 260px; background: rgba(0,0,0,0.5); border-right: 1px solid var(--glass-border);
+            padding: 20px; display: flex; flex-direction: column; gap: 15px;
+            z-index: 10;
+        }
+        .brand { font-family: 'Orbitron'; font-size: 1.5rem; text-align: center; margin-bottom: 20px; color: white; text-shadow: 0 0 10px var(--neon-cyan); }
+        .nav-btn { padding: 15px; color: #888; cursor: pointer; border-left: 3px solid transparent; transition: 0.3s; display: flex; align-items: center; gap: 10px; font-size: 1rem; }
+        .nav-btn:hover, .nav-btn.active { background: rgba(255,255,255,0.05); color: white; border-left-color: var(--neon-cyan); padding-left: 25px; }
+        .nav-btn.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+
+        /* Main Content */
+        main { flex: 1; padding: 20px; overflow-y: auto; position: relative; padding-bottom: 80px; /* Space for mobile nav */ }
+        .view { display: none; animation: fadeIn 0.4s; }
+        .view.active { display: block; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+        /* --- Mobile Navigation (Bottom Bar) --- */
+        .mobile-nav {
+            display: none; position: fixed; bottom: 0; left: 0; width: 100%;
+            height: 70px; background: rgba(5, 5, 8, 0.95);
+            border-top: 1px solid var(--glass-border);
+            z-index: 100; justify-content: space-around; align-items: center;
+            backdrop-filter: blur(10px);
+        }
+        .mobile-item {
+            color: #666; font-size: 0.8rem; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; width: 20%; cursor: pointer; transition: 0.2s;
+        }
+        .mobile-item i { font-size: 1.4rem; margin-bottom: 4px; font-style: normal; }
+        .mobile-item.active { color: var(--neon-cyan); text-shadow: 0 0 10px var(--neon-cyan); }
+
+        /* --- Responsive Styles --- */
+        @media (max-width: 768px) {
+            aside { display: none; }
+            .mobile-nav { display: flex; }
+            main { padding: 15px; padding-bottom: 85px; }
+            .login-box { width: 90%; }
+            
+            /* Excel Horizontal Scroll */
+            .excel-wrap { overflow-x: auto; border-radius: 8px; }
+            table { min-width: 600px; } /* Force scroll on mobile */
+
+            /* Calculator Adjustments */
+            .calc-grid { max-width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+            .calc-btn { padding: 15px 0; font-size: 1.2rem; }
+            
+            /* AI Adjustments */
+            .ai-grid { grid-template-columns: 1fr; height: auto; display: flex; flex-direction: column; }
+            .ai-sidebar { display: flex; overflow-x: auto; padding-bottom: 10px; margin-bottom: 15px; gap: 10px; }
+            .ai-btn { min-width: 140px; padding: 10px; font-size: 0.9rem; }
+        }
+
+        /* --- Component Specifics --- */
+        /* Excel */
+        table { border-collapse: collapse; width: 100%; }
+        th { background: rgba(0, 243, 255, 0.1); color: var(--neon-cyan); padding: 10px; border: 1px solid var(--glass-border); font-family: 'Orbitron'; font-size: 0.8rem; white-space: nowrap; }
+        td { padding: 8px; border: 1px solid var(--glass-border); background: rgba(255,255,255,0.02); min-width: 100px; transition: 0.2s; color: #ddd; font-size: 0.9rem; }
+        td:focus { background: rgba(0, 243, 255, 0.2); outline: none; box-shadow: inset 0 0 15px rgba(0, 243, 255, 0.2); }
+
+        /* Word */
+        .word-page { min-height: 60vh; background: rgba(255,255,255,0.96); color: #111; padding: 20px; border-radius: 4px; box-shadow: 0 0 40px rgba(0,0,0,0.5); outline: none; line-height: 1.6; }
+
+        /* Notes */
+        .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 15px; }
+        .note-card { background: rgba(255,255,200,0.05); border: 1px solid rgba(255,255,200,0.1); padding: 15px; min-height: 180px; border-radius: 10px; }
+
+        /* Calc */
+        .calc-dsp { background: #000; border: 1px solid var(--neon-cyan); color: var(--neon-cyan); font-family: 'Orbitron'; padding: 15px; text-align: right; font-size: 2rem; margin-bottom: 15px; border-radius: 8px; }
+        .calc-btn { background: rgba(255,255,255,0.05); border: none; color: white; border-radius: 4px; transition: 0.2s; }
+        .calc-btn:active { background: var(--neon-cyan); color: black; }
+
+        /* AI */
+        .orb { width: 120px; height: 120px; border-radius: 50%; border: 3px solid var(--neon-cyan); box-shadow: 0 0 30px var(--neon-cyan); display: flex; justify-content: center; align-items: center; cursor: pointer; font-size: 2.5rem; transition: 0.3s; }
+        .orb.listening { border-color: var(--neon-red); box-shadow: 0 0 50px var(--neon-red); animation: pulse-fast 0.5s infinite; }
+        @keyframes pulse-fast { 0%, 100% { transform: scale(1); } 50% { transform: scale(0.9); } }
+
+        /* Files */
+        .file-card { padding: 15px; text-align: center; cursor: pointer; border: 1px solid var(--glass-border); border-radius: 8px; background: rgba(255,255,255,0.02); position: relative; }
+        .file-card.active { border-color: var(--neon-green); box-shadow: 0 0 15px rgba(10,255,0,0.3); }
+
+    </style>
+</head>
+<body>
+
+    <!-- --- ALARM OVERLAYS --- -->
+
+    <!-- 1. Login Alarm (Pink) -->
+    <div id="login-alarm" class="alarm-overlay">
+        <div class="alarm-container">
+            <span class="alarm-icon">⚠️</span>
+            <h1 style="color: var(--neon-pink); font-family: 'Orbitron'; font-size: 2.5rem;">WAKE UP</h1>
+            <div class="alarm-text">SAY "STUDENT" TO STOP</div>
+            <div style="margin-top: 20px; color: #888;">Listening...</div>
+        </div>
+    </div>
+
+    <!-- 2. Emergency Alarm (Red) -->
+    <div id="emergency-alarm" class="alarm-overlay">
+        <div class="alarm-container">
+            <span class="alarm-icon">🚨</span>
+            <h1 style="color: var(--neon-red); font-family: 'Orbitron'; font-size: 3rem;">EMERGENCY</h1>
+            <div class="alarm-text" style="color: var(--neon-red);">SAY "CANCEL" TO STOP</div>
+            <div style="margin-top: 20px;">
+                <button class="btn" onclick="stopEmergency()" style="border-color: white; color: white;">STOP ALARM</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- --- LOADER --- -->
+    <div id="loader-screen">
+        <div class="loader-core"></div>
+        <div class="progress-bar"><div class="progress-fill" id="fill"></div></div>
+        <div style="font-family: 'Orbitron'; color: var(--neon-cyan); letter-spacing: 2px;" id="load-txt">LOADING...</div>
+    </div>
+
+    <!-- --- LOGIN --- -->
+    <div id="login-page">
+        <div class="glass login-box">
+            <h1 style="font-family: 'Orbitron'; color: white; margin-bottom: 10px;">STUDENT OS</h1>
+            <input type="text" id="username" placeholder="ENTER CODENAME">
+            <button class="btn" style="width: 100%; margin-top: 10px;" onclick="attemptLogin()">LOGIN</button>
+        </div>
+    </div>
+
+    <!-- --- APP --- -->
+    <div id="app-container">
+        <!-- Desktop Sidebar -->
+        <aside>
+            <div class="brand">NEON<span style="color:var(--neon-pink)">GLASS</span></div>
+            <button class="nav-btn active" onclick="nav('dashboard')">🏠 Dashboard</button>
+            <button class="nav-btn" onclick="nav('excel')">📊 Timetable</button>
+            <button class="nav-btn" onclick="nav('word')">📝 Word Doc</button>
+            <button class="nav-btn" onclick="nav('notes')">📌 Notes</button>
+            <button class="nav-btn" onclick="nav('ai')">🤖 AI Core</button>
+            <button class="nav-btn" onclick="nav('calc')">🧮 Calc</button>
+            <button class="nav-btn" onclick="nav('files')">💾 Files</button>
+            <div style="flex:1"></div>
+            <button class="nav-btn" style="color: var(--neon-red);" onclick="location.reload()">🚪 LOGOUT</button>
+        </aside>
+
+        <!-- Main Content -->
+        <main>
+            <!-- Dashboard -->
+            <section id="dashboard" class="view active glass" style="padding: 20px; text-align: center; margin-top: 10px;">
+                <h1 style="color: white; font-family: 'Orbitron'; margin-bottom: 5px;">SYSTEM ONLINE</h1>
+                <p id="user-disp" style="color: #888; margin-bottom: 30px;">Welcome</p>
+                <div style="display: flex; justify-content: center; gap: 20px; flex-wrap: wrap;">
+                    <div class="glass" style="padding: 15px; width: 140px; cursor: pointer; border: 1px solid var(--neon-cyan);" onclick="nav('files')">
+                        <span style="font-size: 2rem; display: block;">💾</span><h3 style="color: var(--neon-cyan); font-size: 0.9rem;">FILES</h3>
+                    </div>
+                    <div class="glass" style="padding: 15px; width: 140px; cursor: pointer; border: 1px solid var(--neon-pink);" onclick="nav('ai')">
+                        <span style="font-size: 2rem; display: block;">🤖</span><h3 style="color: var(--neon-pink); font-size: 0.9rem;">AI</h3>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Excel -->
+            <section id="excel" class="view">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px; align-items: center;">
+                    <h2 style="color: var(--neon-cyan); font-size: 1.5rem;">DATA</h2>
+                    <button class="btn" style="padding: 5px 10px; border-color: var(--neon-green); color: var(--neon-green);" onclick="saveCur()">SAVE</button>
+                </div>
+                <div class="excel-wrap glass">
+                    <table id="sheet-table"></table>
+                </div>
+            </section>
+
+            <!-- Word -->
+            <section id="word" class="view">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <h2 style="color: var(--neon-pink);">DOC</h2>
+                    <div style="display: flex; gap: 5px;">
+                         <label class="btn" style="padding: 5px 10px;">IMG <input type="file" hidden onchange="insImg(this)" accept="image/*"></label>
+                         <button class="btn" style="padding: 5px 10px; border-color: var(--neon-green); color: var(--neon-green);" onclick="saveCur()">SAVE</button>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; margin-bottom: 10px;" class="glass" style="padding: 5px;">
+                    <button class="btn" onclick="exec('bold')" style="padding: 5px;">B</button>
+                    <button class="btn" onclick="exec('italic')" style="padding: 5px;">I</button>
+                    <button class="btn" onclick="exec('underline')" style="padding: 5px;">U</button>
+                </div>
+                <div class="word-page" id="word-editor" contenteditable="true"><h1>Doc</h1><p>...</p></div>
+            </section>
+
+            <!-- Notes -->
+            <section id="notes" class="view">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 15px;">
+                    <h2 style="color: var(--neon-amber);">NOTES</h2>
+                    <div style="display: flex; gap: 5px;">
+                        <button class="btn" style="padding: 5px 10px;" onclick="addNote()">+ NEW</button>
+                        <button class="btn" style="padding: 5px 10px; border-color: var(--neon-green); color: var(--neon-green);" onclick="saveCur()">SAVE</button>
+                    </div>
+                </div>
+                <div class="notes-grid" id="notes-area"></div>
+            </section>
+
+            <!-- AI -->
+            <section id="ai" class="view">
+                <div class="ai-grid glass" style="padding: 15px;">
+                    <div class="ai-sidebar">
+                        <div class="glass ai-btn active" onclick="setAI(0,'circle')">👩 Sarah</div>
+                        <div class="glass ai-btn" onclick="setAI(1,'chat')">🎓 Prof</div>
+                        <div class="glass ai-btn" onclick="setAI(2,'chat')">📝 Swift</div>
+                        <div class="glass ai-btn" onclick="setAI(3,'circle')">😎 Bestie</div>
+                    </div>
+
+                    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; width: 100%; padding-top: 20px;">
+                        <div id="circle-interface" style="display: block; text-align: center;">
+                            <div class="orb" id="ai-orb" onclick="voiceAI()">🎙️</div>
+                            <h3 id="orb-status" style="margin-top: 20px; color: white; font-size: 1rem;">TAP TO TALK</h3>
+                        </div>
+                        <div id="chat-interface" style="display: none; width: 100%; height: 300px; flex-direction: column;">
+                            <div style="flex:1; overflow-y:auto; background: rgba(0,0,0,0.3); border-radius: 8px; padding: 10px; margin-bottom: 10px; font-size: 0.9rem;" id="chat-box"></div>
+                            <div style="display: flex; gap: 5px;">
+                                <input type="text" id="chat-inp" placeholder="Type..." style="padding: 10px; margin:0;" onkeypress="if(event.key==='Enter')chatMsg()">
+                                <button class="btn" onclick="chatMsg()">SEND</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Calc -->
+            <section id="calc" class="view">
+                <div class="glass" style="max-width: 380px; margin: 0 auto; padding: 15px;">
+                    <div class="calc-dsp" id="calc-sc">0</div>
+                    <div class="calc-grid">
+                        <button class="calc-btn" onclick="cIn('C')">AC</button>
+                        <button class="calc-btn" onclick="cIn('DEL')">DEL</button>
+                        <button class="calc-btn" onclick="cIn('(')">(</button>
+                        <button class="calc-btn" onclick="cIn(')')">)</button>
+                        <button class="calc-btn" onclick="cIn('7')">7</button>
+                        <button class="calc-btn" onclick="cIn('8')">8</button>
+                        <button class="calc-btn" onclick="cIn('9')">9</button>
+                        <button class="calc-btn" onclick="cIn('/')">÷</button>
+                        <button class="calc-btn" onclick="cIn('4')">4</button>
+                        <button class="calc-btn" onclick="cIn('5')">5</button>
+                        <button class="calc-btn" onclick="cIn('6')">6</button>
+                        <button class="calc-btn" onclick="cIn('*')">×</button>
+                        <button class="calc-btn" onclick="cIn('1')">1</button>
+                        <button class="calc-btn" onclick="cIn('2')">2</button>
+                        <button class="calc-btn" onclick="cIn('3')">3</button>
+                        <button class="calc-btn" onclick="cIn('-')">-</button>
+                        <button class="calc-btn" onclick="cIn('0')">0</button>
+                        <button class="calc-btn" onclick="cIn('.')">.</button>
+                        <button class="calc-btn" style="grid-column: span 2; background: var(--neon-green); color: black; font-weight: bold;" onclick="cIn('=')">=</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Files -->
+            <section id="files" class="view">
+                <div class="glass" style="padding: 20px;">
+                    <h2 style="color: var(--neon-cyan); margin-bottom: 15px;">CLOUD</h2>
+                    <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; background: rgba(0,0,0,0.3); padding: 10px; border-radius: 8px;">
+                        <input type="text" id="new-fn" placeholder="Name" style="flex:1; margin:0; min-width: 120px;">
+                        <select id="new-ft" style="width: auto; margin:0; background: #333;"><option value="all">All</option><option value="sheet">Sheet</option><option value="doc">Doc</option><option value="note">Notes</option></select>
+                        <button class="btn" onclick="createFile()">NEW</button>
+                    </div>
+                    <div id="file-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 15px;"></div>
+                </div>
+            </section>
+
+        </main>
+
+        <!-- Mobile Nav (Bottom) -->
+        <nav class="mobile-nav">
+            <div class="mobile-item active" onclick="nav('dashboard')"><i>🏠</i><span>Home</span></div>
+            <div class="mobile-item" onclick="nav('files')"><i>💾</i><span>Files</span></div>
+            <div class="mobile-item" onclick="nav('ai')"><i>🤖</i><span>AI</span></div>
+            <div class="mobile-item" onclick="nav('calc')"><i>🧮</i><span>Calc</span></div>
+            <div class="mobile-item" onclick="nav('excel')"><i>📑</i><span>Work</span></div>
+        </nav>
+    </div>
+
+    <script>
+        // --- INIT & LOADER ---
+        window.onload = () => {
+            const fill = document.getElementById('fill');
+            let w = 0;
+            const itv = setInterval(() => {
+                w += 2; fill.style.width = w + "%";
+                if(w>=100) {
+                    clearInterval(itv);
+                    document.getElementById('loader-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loader-screen').style.display = 'none';
+                        document.getElementById('login-page').style.display = 'flex';
+                    }, 500);
+                }
+            }, 30);
+            initSystem();
+            startBackgroundListener(); // Start the Emergency listener
+        };
+
+        // --- GLOBALS ---
+        let userFiles = JSON.parse(localStorage.getItem('s_os_files') || '{}');
+        let curFile = null;
+        let aiIdx = 0;
+        let synth = window.speechSynthesis;
+        let recognition;
+        let systemMode = 'IDLE'; // IDLE, LOGIN_ALARM, EMERGENCY, AI_VOICE
+        let alarmOsc, alarmGain, alarmCtx;
+
+        if('webkitSpeechRecognition' in window) {
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = false; // Restart logic handles loop
+            recognition.interimResults = false;
+            recognition.lang = 'en-US';
+        }
+
+        // --- BACKGROUND LISTENER (For Emergency & Login Alarm) ---
+        function startBackgroundListener() {
+            if(!recognition) return;
+            recognition.start();
+
+            recognition.onresult = (e) => {
+                const text = e.results[0][0].transcript.toLowerCase();
+                console.log("Heard:", text, "Mode:", systemMode);
+
+                if (systemMode === 'EMERGENCY') {
+                    if (text.includes('cancel') || text.includes('stop')) stopEmergency();
+                    else restartListener();
+                } 
+                else if (systemMode === 'LOGIN_ALARM') {
+                    if (text.includes('student')) stopLoginAlarm();
+                    else restartListener();
+                }
+                else if (systemMode === 'IDLE') {
+                    // Check for Emergency trigger always
+                    if (text.includes('emergency')) startEmergency();
+                    else restartListener();
+                }
+            };
+
+            recognition.onerror = () => { restartListener(); };
+            recognition.onend = () => { restartListener(); };
+        }
+
+        function restartListener() {
+            // Only restart if we aren't in a mode that requires specific handling or if we want continuous
+            if(systemMode === 'IDLE') {
+                setTimeout(() => { try { recognition.start(); } catch(e){} }, 500);
+            } else if (systemMode === 'EMERGENCY' || systemMode === 'LOGIN_ALARM') {
+                 // Keep listening for cancel/student
+                setTimeout(() => { try { recognition.start(); } catch(e){} }, 500);
+            }
+        }
+
+        function initSystem() {
+            initSheet();
+            addNote();
+            renderFiles();
+        }
+
+        // --- ALARM SYSTEMS ---
+        
+        // 1. Login Alarm (Pink)
+        function attemptLogin() {
+            const name = document.getElementById('username').value;
+            if(!name) return;
+            document.getElementById('user-disp').innerText = "USER: " + name.toUpperCase();
+            
+            // UI Switch
+            document.getElementById('login-page').style.display = 'none';
+            document.getElementById('login-alarm').style.display = 'flex';
+            systemMode = 'LOGIN_ALARM';
+
+            // Sound
+            alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+            alarmGain = alarmCtx.createGain();
+            alarmOsc = alarmCtx.createOscillator();
+            alarmOsc.type = 'sawtooth';
+            alarmOsc.frequency.setValueAtTime(220, alarmCtx.currentTime); 
+            alarmOsc.connect(alarmGain);
+            alarmGain.connect(alarmCtx.destination);
+            alarmGain.gain.value = 0.1;
+            alarmOsc.start();
+
+            setInterval(() => {
+                if(systemMode === 'LOGIN_ALARM') {
+                    alarmOsc.frequency.setValueAtTime(alarmOsc.frequency.value === 220 ? 440 : 220, alarmCtx.currentTime);
+                }
+            }, 600);
+        }
+
+        function stopLoginAlarm() {
+            if(alarmOsc) alarmOsc.stop();
+            if(alarmCtx) alarmCtx.close();
+            document.getElementById('login-alarm').style.display = 'none';
+            document.getElementById('app-container').style.display = 'flex';
+            systemMode = 'IDLE';
+            restartListener();
+        }
+
+        // 2. Emergency Alarm (Red)
+        function startEmergency() {
+            systemMode = 'EMERGENCY';
+            document.getElementById('emergency-alarm').style.display = 'flex';
+
+            // Harsh Sound
+            alarmCtx = new (window.AudioContext || window.webkitAudioContext)();
+            alarmGain = alarmCtx.createGain();
+            alarmOsc = alarmCtx.createOscillator();
+            alarmOsc.type = 'square'; 
+            alarmOsc.frequency.setValueAtTime(800, alarmCtx.currentTime); 
+            alarmOsc.connect(alarmGain);
+            alarmGain.connect(alarmCtx.destination);
+            alarmGain.gain.value = 0.1;
+            alarmOsc.start();
+
+            // Fast Pulse
+            setInterval(() => {
+                if(systemMode === 'EMERGENCY') {
+                    alarmOsc.frequency.setValueAtTime(alarmOsc.frequency.value === 800 ? 1000 : 800, alarmCtx.currentTime);
+                }
+            }, 200);
+        }
+
+        function stopEmergency() {
+            if(alarmOsc) alarmOsc.stop();
+            if(alarmCtx) alarmCtx.close();
+            document.getElementById('emergency-alarm').style.display = 'none';
+            systemMode = 'IDLE';
+            restartListener();
+        }
+
+        // --- NAVIGATION ---
+        function nav(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            
+            // Update Desktop Sidebar
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            // Try to match clicked button (simple check)
+            const clickedBtn = Array.from(document.querySelectorAll('.nav-btn')).find(b => b.getAttribute('onclick').includes(id));
+            if(clickedBtn) clickedBtn.classList.add('active');
+
+            // Update Mobile Nav
+            document.querySelectorAll('.mobile-item').forEach(i => i.classList.remove('active'));
+            const mobileItem = Array.from(document.querySelectorAll('.mobile-item')).find(i => i.getAttribute('onclick').includes(id));
+            if(mobileItem) mobileItem.classList.add('active');
+        }
+
+        // --- FILES & SAVE ---
+        function renderFiles() {
+            const c = document.getElementById('file-list'); c.innerHTML = '';
+            Object.keys(userFiles).forEach(k => {
+                const f = userFiles[k];
+                const div = document.createElement('div');
+                div.className = `glass file-card ${curFile && curFile.id === k ? 'active' : ''}`;
+                div.innerHTML = `<div style="font-size:2rem">${f.type==='sheet'?'📊':f.type==='doc'?'📝':'📦'}</div><div style="font-size:0.8rem; margin-top:5px; word-break:break-all;">${k}</div>`;
+                div.onclick = () => loadFile(k);
+                c.appendChild(div);
+            });
+        }
+        function createFile() {
+            const n = document.getElementById('new-fn').value.trim();
+            const t = document.getElementById('new-ft').value;
+            if(!n || userFiles[n]) return;
+            userFiles[n] = { type: t, data: { sheet: initSheetHTML(), doc: "<h1>Doc</h1>", notes: "" } };
+            localStorage.setItem('s_os_files', JSON.stringify(userFiles));
+            renderFiles(); loadFile(n);
+            document.getElementById('new-fn').value = '';
+        }
+        function loadFile(name) {
+            curFile = { id: name, ...userFiles[name] };
+            renderFiles();
+            const d = curFile.data;
+            if(curFile.type === 'sheet' || curFile.type === 'all') document.getElementById('sheet-table').innerHTML = d.sheet;
+            if(curFile.type === 'doc' || curFile.type === 'all') document.getElementById('word-editor').innerHTML = d.doc;
+            if(curFile.type === 'note' || curFile.type === 'all') document.getElementById('notes-area').innerHTML = d.notes;
+            navTo(curFile.type === 'sheet' ? 'excel' : curFile.type === 'doc' ? 'word' : 'notes');
+        }
+        function navTo(id) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+        }
+        function saveCur() {
+            if(!curFile) return;
+            const d = curFile.data;
+            const t = curFile.type;
+            if(t==='sheet'||t==='all') d.sheet = document.getElementById('sheet-table').innerHTML;
+            if(t==='doc'||t==='all') d.doc = document.getElementById('word-editor').innerHTML;
+            if(t==='note'||t==='all') d.notes = document.getElementById('notes-area').innerHTML;
+            userFiles[curFile.id] = curFile;
+            localStorage.setItem('s_os_files', JSON.stringify(userFiles));
+            alert("SAVED");
+        }
+
+        // --- TOOLS ---
+        function initSheetHTML() {
+            let h='<tr><th></th>'; for(let i=0;i<8;i++)h+=`<th>${String.fromCharCode(65+i)}</th>`; h+='</tr>';
+            for(let r=1;r<=20;r++){h+=`<tr><td>${r}</td>`; for(let c=0;c<8;c++)h+=`<td contenteditable="true"></td>`; h+='</tr>';}
+            return h;
+        }
+        function initSheet(){ document.getElementById('sheet-table').innerHTML = initSheetHTML(); }
+        function exec(c){ document.execCommand(c,false,null); }
+        function insImg(i){ if(i.files[0]){ const r=new FileReader(); r.onload=e=>document.execCommand('insertHTML',false,`<img src="${e.target.result}" style="max-width:100%">`); r.readAsDataURL(i.files[0]); }}
+        function addNote(){ document.getElementById('notes-area').innerHTML+=`<div class="note-card"><textarea style="background:transparent;border:none;width:100%;height:150px;color:white;resize:none;"></textarea></div>`; }
+        let cExp=""; function cIn(v){ const s=document.getElementById('calc-sc'); if(v==='C'){cExp="";s.innerText="0";return;} if(v==='DEL'){cExp=cExp.slice(0,-1);s.innerText=cExp||"0";return;} if(v==='='){ try{s.innerText=eval(cExp);cExp=s.innerText}catch{s.innerText="ERR";cExp="";}return;} cExp+=v;s.innerText=cExp; }
+
+        // --- AI ---
+        function setAI(idx, ui) {
+            aiIdx=idx; document.querySelectorAll('.ai-btn').forEach(b=>b.classList.remove('active')); event.currentTarget.classList.add('active');
+            document.getElementById('circle-interface').style.display=ui==='circle'?'block':'none';
+            document.getElementById('chat-interface').style.display=ui==='chat'?'flex':'none';
+            document.getElementById('chat-box').innerHTML=`<div style="color:var(--neon-cyan); margin-bottom:5px;">Ready.</div>`;
+        }
+        function chatMsg(){
+            const i=document.getElementById('chat-inp').value.trim(); if(!i) return;
+            document.getElementById('chat-box').innerHTML+=`<div style="text-align:right; color:var(--neon-pink); margin-bottom:5px;">${i}</div>`;
+            document.getElementById('chat-inp').value='';
+            setTimeout(()=>document.getElementById('chat-box').innerHTML+=`<div style="color:var(--neon-cyan);">Heard: ${i}</div>`, 500);
+        }
+        function voiceAI(){
+            if(!recognition) return;
+            systemMode = 'AI_VOICE';
+            recognition.start();
+            document.getElementById('ai-orb').classList.add('listening');
+            document.getElementById('orb-status').innerText="LISTENING...";
+            recognition.onresult=e=>{
+                const t=e.results[0][0].transcript;
+                document.getElementById('orb-status').innerText=`YOU: ${t}`;
+                document.getElementById('ai-orb').classList.remove('listening');
+                systemMode = 'IDLE'; 
+                restartListener();
+            }
+        }
+
+    </script>
+</body>
+</html>
